@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>La Odisea del Huevo</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            transition: background-color 0.5s ease;
+        }
+        .contenedor-juego {
+            position: relative;
+            width: 320px;
+            height: 480px;
+        }
+        canvas {
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: background-color 0.5s ease, border-color 0.5s ease;
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-position: center bottom;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(44, 62, 80, 0.9);
+            border: 5px solid #2980b9;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+        #menu { display: flex; }
+        #pausa, #pantalla-game-over, #seleccion-color { display: none; }
+        
+        h1, h2 { margin: 0 0 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .high-score-text, .unlock-notification { font-size: 1.1em; margin-bottom: 15px; }
+        .unlock-notification { color: #f1c40f; font-weight: bold; }
+        .boton {
+            background-color: #e67e22;
+            color: white; padding: 12px 20px; border: none;
+            border-radius: 8px; font-size: 1.1em; cursor: pointer;
+            margin-top: 8px; box-shadow: 0 5px 0 #d35400;
+            transition: all 0.1s ease; width: 90%;
+        }
+        .boton:active { transform: translateY(3px); box-shadow: 0 2px 0 #d35400; }
+        
+        #btnPausa {
+            position: absolute; top: 10px; right: 10px;
+            width: 40px; height: 40px; background-color: rgba(0,0,0,0.3);
+            color: white; border: 2px solid white; border-radius: 50%;
+            font-size: 20px; font-weight: bold; line-height: 38px;
+            text-align: center; cursor: pointer; display: none; z-index: 20;
+        }
+        #vista-previa-huevo {
+            width: 30px; height: 40px; border-radius: 50% / 60% 60% 40% 40%;
+            margin: 10px auto; border: 2px solid #E0E0E0;
+        }
+        #lista-colores {
+            width: 100%; height: 300px; overflow-y: auto; display: flex;
+            flex-direction: column; align-items: center; padding: 10px;
+        }
+        .item-color {
+            display: flex; align-items: center; width: 95%;
+            background-color: rgba(0,0,0,0.2); border-radius: 10px;
+            margin-bottom: 10px; padding: 10px; box-sizing: border-box;
+        }
+        .item-color.bloqueado { opacity: 0.6; cursor: not-allowed; }
+        .preview-huevo-lista {
+            width: 30px; height: 40px; border-radius: 50% / 60% 60% 40% 40%;
+            border: 2px solid #E0E0E0; margin-right: 15px; flex-shrink: 0;
+        }
+        .info-huevo { text-align: left; flex-grow: 1; }
+        .info-huevo .nombre { font-size: 1.1em; font-weight: bold; }
+        .info-huevo .desafio { font-size: 0.9em; color: #f1c40f; }
+        .info-huevo .seleccionado { font-size: 0.9em; color: #2ecc71; }
+        #zona-anuncios {
+            width: 320px; height: 100px;
+            margin-top: 15px; background-color: #2c3e50;
+            border: 2px dashed #ffffff; display: flex;
+            align-items: center; justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="contenedor-juego">
+        <div id="btnPausa">||</div>
+        <canvas id="gameCanvas" width="320" height="480"></canvas>
+        <div id="menu" class="overlay">
+             <h1>🥚 La Odisea del Huevo 🌴</h1>
+            <div class="high-score-text">High Score: <span id="highScoreMenu">0</span></div>
+            <div id="vista-previa-huevo"></div>
+            <button id="btnAbrirSeleccionColor" class="boton">Cambiar Huevo</button>
+            <button id="btnCambiarTema" class="boton">Tema: Día</button>
+            <button id="btnIniciarJuego" class="boton">Iniciar Juego</button>
+        </div>
+        <div id="seleccion-color" class="overlay">
+            <h2>Elige tu Huevo</h2>
+            <div id="lista-colores"></div>
+            <button id="btnCerrarSeleccion" class="boton">Volver</button>
+        </div>
+        <div id="pausa" class="overlay">
+            <h2>Pausa</h2>
+            <button id="btnReanudar" class="boton">Reanudar</button>
+            <button id="btnReiniciarPausa" class="boton">Reiniciar Partida</button>
+            <button id="btnVolverMenu" class="boton">Volver al Menú</button>
+        </div>
+        <div id="pantalla-game-over" class="overlay">
+            <h2>¡Juego Terminado!</h2>
+            <div>Puntuación: <span id="puntuacionFinal">0</span></div>
+            <div class="high-score-text">High Score: <span id="highScoreGameOver">0</span></div>
+            <div id="notificacionDesbloqueo" class="unlock-notification"></div>
+            <button id="btnReiniciarGO" class="boton">Volver a Intentar</button>
+            <button id="btnVolverMenuGO" class="boton">Volver al Menú</button>
+        </div>
+    </div>
+    
+    <div id="zona-anuncios">
+        Espacio para Anuncios (Banner)
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const body = document.body;
+
+        const ui = {
+            menu: document.getElementById('menu'),
+            pausa: document.getElementById('pausa'),
+            gameOver: document.getElementById('pantalla-game-over'),
+            seleccionColor: document.getElementById('seleccion-color'),
+            listaColores: document.getElementById('lista-colores'),
+            highScoreMenu: document.getElementById('highScoreMenu'),
+            highScoreGameOver: document.getElementById('highScoreGameOver'),
+            puntuacionFinal: document.getElementById('puntuacionFinal'),
+            notificacion: document.getElementById('notificacionDesbloqueo'),
+            vistaPrevia: document.getElementById('vista-previa-huevo'),
+            btn: {
+                iniciar: document.getElementById('btnIniciarJuego'),
+                reiniciarPausa: document.getElementById('btnReiniciarPausa'),
+                reiniciarGO: document.getElementById('btnReiniciarGO'),
+                volverMenuGO: document.getElementById('btnVolverMenuGO'),
+                abrirSeleccionColor: document.getElementById('btnAbrirSeleccionColor'),
+                cerrarSeleccion: document.getElementById('btnCerrarSeleccion'),
+                cambiarTema: document.getElementById('btnCambiarTema'),
+                pausa: document.getElementById('btnPausa'),
+                reanudar: document.getElementById('btnReanudar'),
+                volverMenu: document.getElementById('btnVolverMenu')
+            }
+        };
+
+        let huevo = { x: 60, y: 150, width: 30, height: 40, velocidadY: 0, gravedad: 0.2, fuerzaSalto: -4.2, angulo: 0, velocidadGiro: 0, color: '#FFFFFF', nombre: 'Clásico' };
+        let obstaculos = [], nubes = [], particulas = [];
+        let puntuacion = 0, frameJuego = 0, highScore = 0;
+        let estadoJuego = 'menu';
+        
+        const temas = {
+            dia: { nombre: "Día", cielo: '#87CEEB', borde: '#2980b9', cuerpo: '#3498db', martilloC: '#a0a0a0', martilloM: '#8B4513', nube: 'rgba(255, 255, 255, 0.8)', fondoImg: ''},
+            noche: { nombre: "Noche", cielo: '#2c3e50', borde: '#1a2531', cuerpo: '#34495e', martilloC: '#606060', martilloM: '#5A2D0A', nube: 'rgba(200, 200, 220, 0.6)', fondoImg: ''},
+            atardecer: { nombre: "Atardecer", cielo: '#ff7e5f', borde: '#e65c00', cuerpo: '#ffb74d', martilloC: '#5D4037', martilloM: '#795548', nube: 'rgba(255, 235, 204, 0.8)', fondoImg: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 320 480\'%3E%3Cpath fill=\'%23FF9800\' d=\'M0 480h320V380c-50-20-100-30-160-20-60 10-120 0-160 20z\'/%3E%3Cpath fill=\'%23F44336\' d=\'M0 480h320V400c-50-20-100-30-160-20-60 10-120 0-160 20z\'/%3E%3C/svg%3E")'},
+            selva: { nombre: "Selva", cielo: '#2E7D32', borde: '#1B5E20', cuerpo: '#388E3C', martilloC: '#6D4C41', martilloM: '#8D6E63', nube: 'rgba(200, 220, 200, 0.7)', fondoImg: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 320 480\'%3E%3Cpath fill=\'%23218838\' d=\'M0 480h320V280c-50-40-100-60-160-50-60 10-120 30-160 50z\'/%3E%3Cpath fill=\'%2328A745\' d=\'M0 480h320V300c-50-40-100-60-160-50-60 10-120 30-160 50z\'/%3E%3C/svg%3E")'}
+        };
+        const nombresDeTemas = ['dia', 'noche', 'atardecer', 'selva'];
+        let temaActualIndex = 0;
+
+        const huevosBase = [ { color: '#FFFFFF', nombre: 'Clásico' }, { color: '#ADFF2F', nombre: 'Neón' }, { color: '#FFC0CB', nombre: 'Rosa' }, { color: '#87CEEB', nombre: 'Cielo' }];
+        const huevosDesbloqueables = [
+            { color: '#CD7F32', nombre: 'Bronce', score: 200 },
+            { color: '#C0C0C0', nombre: 'Plata', score: 500 },
+            { color: '#FFD700', nombre: 'Oro', score: 1000 },
+            { color: '#B9F2FF', nombre: 'Diamante', score: 2500 },
+            { color: '#E32636', nombre: 'Rubí', score: 7500 },
+            { color: '#009966', nombre: 'Esmeralda', score: 10000 },
+            { color: '#9966CC', nombre: 'Amatista', score: 15000 }
+        ];
+        let desbloqueadosGuardados = [];
+
+        ui.btn.iniciar.onclick = iniciarJuego;
+        ui.btn.reiniciarPausa.onclick = iniciarJuego;
+        ui.btn.reiniciarGO.onclick = iniciarJuego;
+        ui.btn.reanudar.onclick = reanudarJuego;
+        ui.btn.pausa.onclick = pausarJuego;
+        ui.btn.abrirSeleccionColor.onclick = abrirMenuColor;
+        ui.btn.cerrarSeleccion.onclick = cerrarMenuColor;
+        ui.btn.cambiarTema.onclick = cambiarTema;
+        ui.btn.volverMenu.onclick = volverAlMenu;
+        ui.btn.volverMenuGO.onclick = volverAlMenu;
+        canvas.addEventListener('mousedown', saltar);
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); saltar(); });
+
+        function iniciarJuego() {
+            Object.values(ui).forEach(el => el.style && el.id !== 'btnPausa' && (el.style.display = 'none'));
+            ui.btn.pausa.style.display = 'block';
+            reiniciarValoresPartida();
+            estadoJuego = 'jugando';
+        }
+
+        function pausarJuego() {
+            if (estadoJuego !== 'jugando') return;
+            estadoJuego = 'pausa';
+            ui.pausa.style.display = 'flex';
+        }
+
+        function reanudarJuego() {
+            if (estadoJuego !== 'pausa') return;
+            estadoJuego = 'jugando';
+            ui.pausa.style.display = 'none';
+        }
+        
+        function mostrarPantallaGameOver() {
+            estadoJuego = 'terminado';
+            guardarProgreso();
+            const nuevosDesbloqueos = verificarNuevosDesbloqueos();
+            if(nuevosDesbloqueos.length > 0) guardarProgreso();
+            
+            actualizarDisplaysHighScore();
+            ui.puntuacionFinal.textContent = puntuacion;
+            ui.notificacion.textContent = nuevosDesbloqueos.length > 0 ? `¡Nuevo Desbloqueo: ${nuevosDesbloqueos.map(h => h.nombre).join(', ')}!` : '';
+            ui.gameOver.style.display = 'flex';
+        }
+        
+        function volverAlMenu() {
+            Object.values(ui).forEach(el => el.style && (el.style.display = 'none'));
+            ui.menu.style.display = 'flex';
+            estadoJuego = 'menu';
+            setupInicial();
+        }
+        
+        function reiniciarValoresPartida() {
+            huevo.y = 150;
+            huevo.velocidadY = 0;
+            huevo.angulo = 0;
+            obstaculos = [];
+            nubes = [];
+            particulas = [];
+            puntuacion = 0;
+            frameJuego = 0;
+        }
+
+        function gameLoop() {
+            if (estadoJuego === 'pausa' || estadoJuego === 'menu' || estadoJuego === 'terminado') {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            gestionarNubes();
+            gestionarObstaculos();
+            gestionarParticulas();
+            dibujarHuevo();
+            dibujarPuntuacion();
+
+            if (estadoJuego === 'jugando') {
+                actualizarHuevo();
+                if (comprobarColisiones()) {
+                    iniciarAnimacionChoque();
+                }
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function iniciarAnimacionChoque() {
+            if (estadoJuego !== 'jugando') return;
+            estadoJuego = 'chocando';
+            crearExplosion(huevo.x + huevo.width / 2, huevo.y + huevo.height / 2, huevo.color);
+            
+            puntuacion = Math.floor(puntuacion);
+            if (puntuacion > highScore) {
+                highScore = puntuacion;
+            }
+            
+            setTimeout(mostrarPantallaGameOver, 500);
+        }
+
+        function saltar() {
+            if (estadoJuego !== 'jugando') return;
+            huevo.velocidadY = huevo.fuerzaSalto;
+            huevo.velocidadGiro = -0.1;
+        }
+        
+        function actualizarHuevo() {
+            huevo.velocidadY += huevo.gravedad;
+            huevo.y += huevo.velocidadY;
+            if (huevo.velocidadY < 0) huevo.angulo += huevo.velocidadGiro;
+            huevo.velocidadGiro *= 0.95;
+            frameJuego++;
+        }
+
+        function dibujarHuevo() {
+            if (estadoJuego !== 'jugando') return;
+            ctx.save();
+            ctx.translate(huevo.x + huevo.width / 2, huevo.y + huevo.height / 2);
+            ctx.rotate(huevo.angulo);
+            ctx.fillStyle = huevo.color;
+            ctx.strokeStyle = '#E0E0E0';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, huevo.width / 2, huevo.height / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
+        
+        function gestionarObstaculos() {
+            if (estadoJuego === 'jugando' && frameJuego % 100 === 0) {
+                let alturaObstaculo = Math.random() * (canvas.height - 300) + 75;
+                let espacio = 150;
+                obstaculos.push({ x: canvas.width, y: 0, width: 50, height: alturaObstaculo, pasado: false, tipo: 'superior' });
+                obstaculos.push({ x: canvas.width, y: alturaObstaculo + espacio, width: 50, height: canvas.height - (alturaObstaculo + espacio), pasado: false, tipo: 'inferior' });
+            }
+            obstaculos.forEach(obs => {
+                if (estadoJuego === 'jugando') obs.x -= 2;
+                dibujarMartillo(obs);
+                if (estadoJuego === 'jugando' && !obs.pasado && obs.x + obs.width < huevo.x) {
+                    obs.pasado = true;
+                    puntuacion += 0.5;
+                }
+            });
+            obstaculos = obstaculos.filter(obs => obs.x + obs.width > 0);
+        }
+        
+        function dibujarMartillo(obs) {
+            const tema = temas[nombresDeTemas[temaActualIndex]];
+            const headHeight = 40;
+            const handleWidth = 20;
+            const handleX = obs.x + (obs.width - handleWidth) / 2;
+
+            if (obs.tipo === 'superior') {
+                // Martillo superior
+                ctx.fillStyle = tema.martilloM;
+                ctx.fillRect(handleX, 0, handleWidth, obs.height - headHeight);
+                ctx.fillStyle = tema.martilloC;
+                ctx.fillRect(obs.x, obs.height - headHeight, obs.width, headHeight);
+            } else {
+                // Martillo inferior
+                ctx.fillStyle = tema.martilloC;
+                ctx.fillRect(obs.x, obs.y, obs.width, headHeight);
+                ctx.fillStyle = tema.martilloM;
+                ctx.fillRect(handleX, obs.y + headHeight, handleWidth, obs.height - headHeight);
+            }
+        }
+
+        function gestionarNubes() {
+             if ((estadoJuego === 'jugando') && frameJuego % 120 === 0) {
+                nubes.push({ x: canvas.width, y: Math.random() * (canvas.height / 3), size: Math.random() * 20 + 20 });
+            }
+            nubes.forEach(nube => { 
+                if (estadoJuego === 'jugando') nube.x -= 0.5;
+                dibujarNube(nube);
+            });
+            nubes = nubes.filter(nube => nube.x + nube.size * 3 > 0);
+        }
+        
+        function dibujarNube(nube) {
+            const tema = temas[nombresDeTemas[temaActualIndex]];
+            ctx.fillStyle = tema.nube;
+            ctx.beginPath();
+            ctx.arc(nube.x, nube.y, nube.size, 0, Math.PI * 2);
+            ctx.arc(nube.x + nube.size * 0.8, nube.y, nube.size * 0.8, 0, Math.PI * 2);
+            ctx.arc(nube.x - nube.size * 0.8, nube.y, nube.size * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function dibujarPuntuacion() {
+            if (estadoJuego === 'menu' || estadoJuego === 'terminado') return;
+            ctx.font = '40px Arial';
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 3;
+            ctx.textAlign = 'center';
+            const scoreText = Math.floor(puntuacion);
+            ctx.strokeText(scoreText, canvas.width / 2, 50);
+            ctx.fillText(scoreText, canvas.width / 2, 50);
+        }
+        
+        function comprobarColisiones() {
+            if (huevo.y + huevo.height > canvas.height || huevo.y < 0) return true;
+            for (const obs of obstaculos) {
+                if (huevo.x < obs.x + obs.width && huevo.x + huevo.width > obs.x && huevo.y < obs.y + obs.height && huevo.y + huevo.height > obs.y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function crearExplosion(x, y, color) {
+            for (let i = 0; i < 30; i++) {
+                particulas.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+                    radius: Math.random() * 3 + 1, color: color, alpha: 1
+                });
+            }
+        }
+
+        function gestionarParticulas() {
+            for (let i = particulas.length - 1; i >= 0; i--) {
+                const p = particulas[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.03;
+                if (p.alpha <= 0) {
+                    particulas.splice(i, 1);
+                } else {
+                    ctx.save();
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+
+        function cambiarTema() {
+            temaActualIndex = (temaActualIndex + 1) % nombresDeTemas.length;
+            const temaKey = nombresDeTemas[temaActualIndex];
+            const tema = temas[temaKey];
+            
+            body.style.backgroundColor = tema.cuerpo;
+            canvas.style.backgroundColor = tema.cielo;
+            canvas.style.borderColor = tema.borde;
+            ui.btn.cambiarTema.textContent = `Tema: ${tema.nombre}`;
+            canvas.style.backgroundImage = tema.fondoImg;
+        }
+        
+        function cargarProgreso() {
+             try { 
+                highScore = Math.floor(localStorage.getItem('highscore_huevo')) || 0;
+                desbloqueadosGuardados = JSON.parse(localStorage.getItem('huevosDesbloqueados_v5')) || [];
+            } catch (e) {
+                highScore = 0;
+                desbloqueadosGuardados = [];
+            }
+        }
+
+        function guardarProgreso() {
+            try {
+                localStorage.setItem('highscore_huevo', highScore);
+                localStorage.setItem('huevosDesbloqueados_v5', JSON.stringify(desbloqueadosGuardados));
+            } catch(e) {}
+        }
+
+        function verificarNuevosDesbloqueos() {
+            const nuevos = [];
+            huevosDesbloqueables.forEach(h => {
+                if(highScore >= h.score && !desbloqueadosGuardados.includes(h.nombre)) {
+                    desbloqueadosGuardados.push(h.nombre);
+                    nuevos.push(h);
+                }
+            });
+            return nuevos;
+        }
+
+        function abrirMenuColor() {
+            renderizarListaColores();
+            ui.menu.style.display = 'none';
+            ui.seleccionColor.style.display = 'flex';
+        }
+
+        function cerrarMenuColor() {
+            ui.seleccionColor.style.display = 'none';
+            ui.menu.style.display = 'flex';
+        }
+
+        function renderizarListaColores() {
+            ui.listaColores.innerHTML = '';
+            const todosLosHuevos = [...huevosBase, ...huevosDesbloqueables];
+            todosLosHuevos.forEach(h => {
+                const item = document.createElement('div');
+                item.className = 'item-color';
+                const preview = document.createElement('div');
+                preview.className = 'preview-huevo-lista';
+                preview.style.backgroundColor = h.color;
+                const info = document.createElement('div');
+                info.className = 'info-huevo';
+                const nombre = document.createElement('div');
+                nombre.className = 'nombre';
+                nombre.textContent = h.nombre;
+                const estado = document.createElement('div');
+                const desbloqueado = h.score ? desbloqueadosGuardados.includes(h.nombre) : true;
+
+                if (h.score) {
+                    if (desbloqueado) {
+                        estado.className = 'desafio';
+                        estado.textContent = 'Desbloqueado';
+                    } else {
+                        item.classList.add('bloqueado');
+                        estado.className = 'desafio';
+                        estado.textContent = `Llega a ${h.score} puntos`;
+                    }
+                }
+                if (h.color === huevo.color) {
+                    estado.textContent = 'Seleccionado';
+                    estado.className = 'seleccionado';
+                }
+                info.appendChild(nombre);
+                info.appendChild(estado);
+                item.appendChild(preview);
+                item.appendChild(info);
+                if (desbloqueado) {
+                    item.onclick = () => {
+                        huevo.color = h.color;
+                        huevo.nombre = h.nombre;
+                        actualizarVistaPreviaHuevo();
+                        cerrarMenuColor();
+                    };
+                }
+                ui.listaColores.appendChild(item);
+            });
+        }
+        
+        function actualizarVistaPreviaHuevo() {
+             ui.vistaPrevia.style.backgroundColor = huevo.color;
+        }
+
+        function setupInicial() {
+            cargarProgreso();
+            verificarNuevosDesbloqueos();
+            actualizarDisplaysHighScore();
+            
+            const huevoSeleccionadoValido = [...huevosBase, ...huevosDesbloqueables.filter(h => desbloqueadosGuardados.includes(h.nombre))].find(h => h.color === huevo.color);
+            if (!huevoSeleccionadoValido) {
+                huevo.color = huevosBase[0].color;
+                huevo.nombre = huevosBase[0].nombre;
+            }
+            actualizarVistaPreviaHuevo();
+
+            const temaKey = nombresDeTemas[temaActualIndex];
+            const tema = temas[temaKey];
+            body.style.backgroundColor = tema.cuerpo;
+            canvas.style.backgroundColor = tema.cielo;
+            canvas.style.borderColor = tema.borde;
+            ui.btn.cambiarTema.textContent = `Tema: ${tema.nombre}`;
+            canvas.style.backgroundImage = tema.fondoImg; 
+        }
+        
+        function actualizarDisplaysHighScore(){
+            ui.highScoreMenu.textContent = highScore;
+            ui.highScoreGameOver.textContent = highScore;
+        }
+        
+        setupInicial();
+        gameLoop();
+    });
+    </script>
+</body>
+</html>
